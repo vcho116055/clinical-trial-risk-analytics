@@ -1,6 +1,6 @@
 # Clinical Trial Risk and Enrollment Analytics Platform
 
-## PRoblem 
+## Problem 
 
 Clinical trials can fail, terminate, or struggle due to a variety of issues such as recruitment problems, study complexity, sponsor constraints, geography, eligibility criteria, and trial design. This project builds an end to end data science platform that uses public clinical trial data to predict trial risk and visualize risk patterns through an interactive dashboard. 
 
@@ -25,7 +25,7 @@ Recruiting, not yet recruiting, active not recruiting, unknown, and other status
 4. Exploratory data analysis
 5. Baseline modeling 
 6. Traditional ML models
-7. TensorFlow and Pytorch experiments 
+7. TensorFlow and PyTorch experiments 
 8. Model eval and interpretation
 9. Interactive dashboard 
 10. Limitations and next steps
@@ -53,6 +53,7 @@ Planned Streamlit dashboard tabs:
 - Risk Explorer
 - Model Insights
 - Trial Detail
+- Data Quality
 
 ## Limitations 
 
