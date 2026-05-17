@@ -10,6 +10,10 @@ This project builds a reproducible clinical trial analytics pipeline that moves 
 
 The goal is not to provide clinical, regulatory, or operational recommendations. The goal is to build a transparent data science workflow for exploring trial risk signals from public trial metadata.
 
+## Live Dashboard
+
+[Open the Streamlit dashboard](https://clinical-trial-risk-analytics.streamlit.app/)
+
 ## Screenshots
 
 ### Overview
