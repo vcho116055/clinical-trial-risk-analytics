@@ -12,7 +12,7 @@ API_URL = 'https://clinicaltrials.gov/api/v2/studies'
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RAW_DATA_DIR = PROJECT_ROOT / 'data' / 'raw'
-OUTPUT_PATH = RAW_DATA_DIR / 'clinical_trials_sample.json'
+OUTPUT_PATH = RAW_DATA_DIR / 'clinical_trials_larger_sample.json'
 
 TARGET_STATUSES = [
     'COMPLETED',
@@ -21,22 +21,44 @@ TARGET_STATUSES = [
     'SUSPENDED',
 ]
 
-PAGE_SIZE_PER_STATUS = 150
+MAX_RECORDS_PER_STATUS = 500
+PAGE_SIZE = 100
 
 
-def fetch_trials_by_status(status, page_size = PAGE_SIZE_PER_STATUS):
-    '''Gets a small sample of trials for one ClinicalTrials.gov status. Returns list of dictionaries of string-any type key-value pairs.'''
-    params = {
-        'format' : 'json',
-        'pageSize' : page_size,
-        'query.term' : f'AREA[OverallStatus]{status}',
-    }
+def fetch_trials_by_status(status, max_records, page_size = PAGE_SIZE):
+    collected = []
+    page_token = None
 
-    response = requests.get(API_URL, params=params, timeout=30)
-    response.raise_for_status()
+    while len(collected) < max_records:
+        remaining = max_records - len(collected)
+        current = min(page_size, remaining)
 
-    data = response.json()
-    return data.get('studies', [])
+        params = {
+            'format' : 'json',
+            'pageSize' : current,
+            'query.term' : f'AREA[OverallStatus]{status}',
+        }
+
+        if page_token:
+            params['pageToken'] = page_token
+
+        response = requests.get(API_URL, params=params, timeout=30)
+        response.raise_for_status()
+
+        data = response.json()
+        studies = data.get('studies', [])
+
+        if not studies:
+            break
+
+        collected.extend(studies)
+
+        page_token = data.get('nextPageToken')
+
+        if not page_token:
+            break
+
+    return collected
 
 def main():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -45,9 +67,9 @@ def main():
     status_counts: dict[str, int] = {}
 
     for status in TARGET_STATUSES: 
-        print(f'Pulling {PAGE_SIZE_PER_STATUS} trials with status: {status}')
+        print(f'Pulling up to {MAX_RECORDS_PER_STATUS} trials with status: {status}')
 
-        studies = fetch_trials_by_status(status)
+        studies = fetch_trials_by_status(status, MAX_RECORDS_PER_STATUS, PAGE_SIZE)
         all_studies.extend(studies)
         status_counts[status] = len(studies)
 
@@ -59,7 +81,8 @@ def main():
             'api_url' : API_URL, 
             'pulled_at_utc' : datetime.now(timezone.utc).isoformat(),
             'target_statuses' : TARGET_STATUSES, 
-            'page_size_per_status' : PAGE_SIZE_PER_STATUS, 
+            'max_records_per_status': MAX_RECORDS_PER_STATUS,
+            'page_size': PAGE_SIZE, 
             'status_counts' : status_counts, 
             'total_studies' : len(all_studies), 
         }, 

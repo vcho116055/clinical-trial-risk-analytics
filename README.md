@@ -14,9 +14,7 @@ The current goal is not to produce clinical or operational recommendations. The 
 
 Primary data source:
 
-```text
 ClinicalTrials.gov public study records
-```
 
 The initial dataset is pulled from the ClinicalTrials.gov API and saved as raw JSON before being normalized into flat tables for analysis and modeling.
 
