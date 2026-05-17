@@ -58,3 +58,35 @@ Planned Streamlit dashboard tabs:
 ## Limitations 
 
 This project uses public trial metadata, which may be incomplete, inconsistently reported, or affected by reporting delays. Model outputs should be interpreted as exploratory risk signals rather than clinical or operational recommendations.
+
+## Current Progress
+
+- Pulled an initial ClinicalTrials.gov sample
+- Normalized nested API records into a flat table
+- Created a first data dictionary
+- Completed initial EDA on missingness, target distribution, and feature usability
+- Built the first processed modeling dataset with a binary risk label and simple engineered features
+
+## Modeling Progress
+
+The first baseline modeling pipeline trains and evaluates a Dummy Classifier, Logistic Regression, Random Forest, and XGBoost model on the processed clinical trial dataset.
+
+The first modeling pass uses pre-outcome trial features such as phase, study type, sponsor class, enrollment, location counts, intervention counts, eligibility text length, summary length, and missingness indicators.
+
+Completion-related fields such as `completion_date`, `primary_completion_date`, and `trial_duration_days` are excluded from the first model because they may leak outcome information.
+
+Current baseline results:
+
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Dummy Classifier | 0.750 | 0.750 | 1.000 | 0.857 | 0.500 |
+| Logistic Regression | 0.825 | 0.960 | 0.800 | 0.873 | 0.916 |
+| Random Forest | 0.858 | 0.974 | 0.833 | 0.898 | 0.904 |
+| XGBoost | 0.850 | 0.900 | 0.900 | 0.900 | 0.894 |
+
+These results are preliminary because the current dataset is small and intentionally status-stratified. The next step is to validate the pipeline on a larger and more realistic data pull.
+
+Model results are saved to:
+
+```text
+reports/model_results.csv
