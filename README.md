@@ -10,6 +10,24 @@ This project builds a reproducible clinical trial analytics pipeline that moves 
 
 The goal is not to provide clinical, regulatory, or operational recommendations. The goal is to build a transparent data science workflow for exploring trial risk signals from public trial metadata.
 
+## Screenshots
+
+### Overview
+
+![Overview dashboard tab](docs/screenshots/overview.png)
+
+### Model Insights
+
+![Model Insights dashboard tab](docs/screenshots/model_insights.png)
+
+### Risk Explorer
+
+![Risk Explorer dashboard tab](docs/screenshots/risk_explorer.png)
+
+### Trial Detail
+
+![Trial Detail dashboard tab](docs/screenshots/trial_detail.png)
+
 ## Data Source
 
 Primary data source:
