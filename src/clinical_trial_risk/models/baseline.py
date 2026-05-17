@@ -30,6 +30,18 @@ REPORTS_DIR = PROJECT_ROOT / 'reports'
 
 MODEL_RESULTS_PATH = REPORTS_DIR / 'model_results.csv'
 
+LOGISTIC_FEATURE_IMPORTANCE_PATH = (
+    REPORTS_DIR / 'logistic_regression_feature_importance.csv'
+)
+
+RANDOM_FOREST_FEATURE_IMPORTANCE_PATH = (
+    REPORTS_DIR / 'random_forest_feature_importance.csv'
+)
+
+XGBOOST_FEATURE_IMPORTANCE_PATH = (
+    REPORTS_DIR / 'xgboost_feature_importance.csv'
+)
+
 NUMERIC_FEATURES = [
     'enrollment_count',
     'log_enrollment_count',
@@ -79,7 +91,7 @@ def create_preprocessor():
     numeric_transformer = Pipeline(
         steps = [
             ('imputer', SimpleImputer(strategy = 'median')),
-            ('scalar', StandardScaler()),
+            ('scaler', StandardScaler()),
         ]
     )
 
@@ -123,7 +135,70 @@ def evaluate_model(model_name, model, X_test, y_test):
 
     return metrics
 
+def save_logistic_feature_importance(model, output_path):
+    preprocessor = model.named_steps['preprocessor']
+    logistic_regression = model.named_steps['model']
+
+    feature_names = preprocessor.get_feature_names_out()
+    coefficients = logistic_regression.coef_[0]
+
+    feature_importance_df = pd.DataFrame(
+        {
+            'feature' : feature_names, 
+            'coefficient' : coefficients,
+        }
+    )
+
+    feature_importance_df['abs_coefficient'] = feature_importance_df['coefficient'].abs()
+
+    feature_importance_df['direction'] = feature_importance_df['coefficient'].apply(lambda value: 'higher_risk' if value > 0 else 'lower_risk')
+
+    feature_importance_df = feature_importance_df.sort_values('abs_coefficient', ascending=False)
+
+    feature_importance_df.to_csv(output_path, index=False)
+
+    print()
+    print(f'Saved Logistic Regression feature importance to: {output_path}')
+
+    print()
+    print('Top Logistic Regression feature importances:')
+    print(feature_importance_df.head(15).round(3))
+
+    return feature_importance_df
+
+def save_tree_feature_importance(model_name, model, output_path):
+    preprocessor = model.named_steps['preprocessor']
+    tree_model = model.named_steps['model']
+
+    feature_names = preprocessor.get_feature_names_out()
+    importances = tree_model.feature_importances_
+
+    feature_importance_df = pd.DataFrame(
+        {
+            'feature': feature_names,
+            'importance': importances,
+        }
+    )
+
+    feature_importance_df = feature_importance_df.sort_values(
+        'importance',
+        ascending=False,
+    )
+
+    feature_importance_df.to_csv(output_path, index=False)
+
+    print()
+    print(f'Saved {model_name} feature importance to: {output_path}')
+
+    print()
+    print(f'Top {model_name} feature importances:')
+    print(feature_importance_df.head(15).round(3))
+
+    return feature_importance_df
+
 def main():
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
     df = load_dataset()
     validate_columns(df)
 
@@ -203,12 +278,17 @@ def main():
     logistic_model.fit(X_train, y_train)
 
     results.append(
-    evaluate_model(
-        'Logistic Regression',
-        logistic_model,
-        X_test,
-        y_test,
+        evaluate_model(
+            'Logistic Regression',
+            logistic_model,
+            X_test,
+            y_test,
+        )
     )
+
+    save_logistic_feature_importance(
+        logistic_model,
+        LOGISTIC_FEATURE_IMPORTANCE_PATH,
     )
 
     random_forest_model = Pipeline(
@@ -230,12 +310,18 @@ def main():
     random_forest_model.fit(X_train, y_train)
 
     results.append(
-    evaluate_model(
+        evaluate_model(
+            'Random Forest',
+            random_forest_model,
+            X_test,
+            y_test,
+        )
+    )
+
+    save_tree_feature_importance(
         'Random Forest',
         random_forest_model,
-        X_test,
-        y_test,
-    )
+        RANDOM_FOREST_FEATURE_IMPORTANCE_PATH,
     )
 
     xgboost_model = Pipeline(
@@ -260,12 +346,18 @@ def main():
     xgboost_model.fit(X_train, y_train)
 
     results.append(
-    evaluate_model(
+        evaluate_model(
+            'XGBoost',
+            xgboost_model,
+            X_test,
+            y_test,
+        )
+    )
+
+    save_tree_feature_importance(
         'XGBoost',
         xgboost_model,
-        X_test,
-        y_test,
-    )
+        XGBOOST_FEATURE_IMPORTANCE_PATH,
     )
 
     results_df = pd.DataFrame(results)
@@ -274,13 +366,6 @@ def main():
     print('Model comparison:')
     print(results_df.round(3))
 
-    results_df = pd.DataFrame(results)
-
-    print()
-    print("Model comparison:")
-    print(results_df.round(3))
-
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(MODEL_RESULTS_PATH, index=False)
 
     print()
