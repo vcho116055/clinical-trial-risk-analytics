@@ -8,6 +8,7 @@ __pycache__/
 
 data/raw/
 data/interim/
-data/processed/
+data/processed/*
+!data/processed/trials_modeling_larger_sample.csv
 
 .DS_Store

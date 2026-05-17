@@ -1,265 +1,305 @@
-# Clinical Trial Risk and Enrollment Analytics Platform
+# Clinical Trial Risk Analytics Platform
 
-An end to end data science project that uses public ClinicalTrials.gov records to analyze clinical trial risk, build baseline prediction models, and prepare for an interactive dashboard that explores risk patterns, model outputs, and data quality.
+An end to end data science project that uses public ClinicalTrials.gov records to analyze clinical trial outcome risk, train baseline prediction models, investigate possible leakage, and display results in an interactive Streamlit dashboard.
 
-## Project Overview
+## Overview
 
 Clinical trials can terminate early, withdraw before enrollment, or become suspended for many reasons, including recruitment difficulty, study complexity, eligibility restrictions, sponsor constraints, geography, and trial design.
 
-This project builds a reproducible clinical trial analytics pipeline that moves from raw public API data to a modeling ready dataset, baseline machine learning models, and model interpretation outputs.
+This project builds a reproducible clinical trial analytics pipeline that moves from raw public API data to a modeling ready dataset, baseline machine learning models, feature importance outputs, leakage aware model comparisons, and an interactive dashboard.
 
-The current goal is not to produce clinical or operational recommendations. The goal is to build a transparent, explainable, and reproducible data science workflow for exploring trial risk signals.
+The goal is not to provide clinical, regulatory, or operational recommendations. The goal is to build a transparent data science workflow for exploring trial risk signals from public trial metadata.
 
 ## Data Source
 
 Primary data source:
 
-ClinicalTrials.gov public study records
-
-The initial dataset is pulled from the ClinicalTrials.gov API and saved as raw JSON before being normalized into flat tables for analysis and modeling.
+- ClinicalTrials.gov public study records
+- Data is pulled through the ClinicalTrials.gov API
+- Raw API output is saved as JSON
+- Nested records are normalized into flat tables for analysis and modeling
 
 ## Target Variable
 
 The first version uses trial status as a simplified proxy for risk.
 
-Initial target mapping:
-
 | Trial Status | Risk Label | Meaning |
 |---|---:|---|
-| `COMPLETED` | 0 | Low risk |
-| `TERMINATED` | 1 | High risk |
-| `WITHDRAWN` | 1 | High risk |
-| `SUSPENDED` | 1 | High risk |
+| COMPLETED | 0 | Low risk |
+| TERMINATED | 1 | High risk |
+| WITHDRAWN | 1 | High risk |
+| SUSPENDED | 1 | High risk |
 
-Other statuses, such as recruiting, not yet recruiting, active not recruiting, unknown, and other ongoing statuses are excluded or held out for later modeling decisions.
+Other statuses, such as recruiting, not yet recruiting, active not recruiting, and unknown are excluded or held out for future modeling decisions.
 
-This target is intentionally simple for the first version. It does not capture every form of clinical trial difficulty, such as slow recruitment, delayed completion, poor reporting, or inconclusive outcomes.
+This target is intentionally simple. It does not capture every form of clinical trial difficulty, such as slow recruitment, delayed completion, poor reporting, or inconclusive outcomes.
 
-## Pipeline Overview
+## Project Workflow
 
-The current pipeline follows this structure:
-
-1. Pull sample records from ClinicalTrials.gov
-2. Save raw API output as JSON
-3. Normalize nested trial records into a flat table
+1. Pull clinical trial records from ClinicalTrials.gov
+2. Save raw API responses as JSON
+3. Normalize nested trial records into flat tables
 4. Perform exploratory data analysis
-5. Create a processed modeling dataset
+5. Build a processed modeling dataset
 6. Train baseline classification models
 7. Save model results and feature importance outputs
-8. Document limitations and next steps
+8. Run a larger sample validation
+9. Run a no enrollment leakage check
+10. Build a Streamlit dashboard for exploration
 
 ## Project Structure
 
-```text
-data/
-  raw/            Raw ClinicalTrials.gov API outputs
-  interim/        Normalized flat trial tables
-  processed/      Modeling ready datasets
-
-notebooks/
-  data_dictionary_notes.md
-  initial_eda.py
-  day3_modeling_notes.md
-  day4_model_interpretation_notes.md
-
-src/
-  clinical_trial_risk/
-    ingest/       API data pulling
-    clean/        Raw JSON normalization
-    features/     Feature engineering
-    models/       Baseline modeling and interpretation
-    dashboard/    Planned Streamlit dashboard
-
-reports/
-  model_results.csv
-  logistic_regression_feature_importance.csv
-  random_forest_feature_importance.csv
-  xgboost_feature_importance.csv
-```
+| Path | Purpose |
+|---|---|
+| data/raw/ | Raw ClinicalTrials.gov API outputs |
+| data/interim/ | Normalized flat trial tables |
+| data/processed/ | Modeling ready datasets |
+| notebooks/ | Data dictionary, EDA notes, modeling notes, and interpretation notes |
+| src/clinical_trial_risk/ingest/ | API data pulling |
+| src/clinical_trial_risk/clean/ | Raw JSON normalization |
+| src/clinical_trial_risk/features/ | Feature engineering |
+| src/clinical_trial_risk/models/ | Baseline modeling and interpretation |
+| src/clinical_trial_risk/dashboard/ | Streamlit dashboard |
+| reports/ | Model result CSVs and feature importance CSVs |
 
 ## Feature Engineering
 
-The first processed modeling dataset includes structured, text derived, and missingness based features.
-
-Examples include:
+The processed modeling dataset includes structured, text derived, and missingness based features.
 
 | Feature | Description |
 |---|---|
-| `enrollment_count` | Reported trial enrollment count |
-| `log_enrollment_count` | Log transformed enrollment count |
-| `num_conditions` | Number of listed conditions |
-| `num_interventions` | Number of listed interventions |
-| `num_locations` | Number of listed study locations |
-| `num_countries` | Number of unique countries |
-| `eligibility_text_length` | Character length of eligibility criteria |
-| `brief_summary_length` | Character length of brief summary |
-| `start_year` | Parsed trial start year |
-| `has_placebo` | Keyword indicator for placebo |
-| `adult_only` | Indicator for adult or older adult only studies |
-| `phase_missing` | Indicator for missing phase |
-| `maximum_age_missing` | Indicator for missing maximum age |
-| `locations_missing` | Indicator for missing location text |
-| `interventions_missing` | Indicator for missing intervention text |
+| enrollment_count | Reported trial enrollment count |
+| log_enrollment_count | Log transformed enrollment count |
+| num_conditions | Number of listed conditions |
+| num_interventions | Number of listed interventions |
+| num_locations | Number of listed study locations |
+| num_countries | Number of unique countries |
+| eligibility_text_length | Character length of eligibility criteria |
+| brief_summary_length | Character length of brief summary |
+| start_year | Parsed trial start year |
+| has_placebo | Keyword indicator for placebo |
+| adult_only | Indicator for adult or older adult studies |
+| phase_missing | Indicator for missing phase |
+| maximum_age_missing | Indicator for missing maximum age |
+| locations_missing | Indicator for missing location text |
+| interventions_missing | Indicator for missing intervention text |
 
 Categorical features include:
 
-```text
-phase
-study_type
-sponsor_class
-sex
-enrollment_type
-```
+- phase
+- study_type
+- sponsor_class
+- sex
+- enrollment_type
 
-Completion related fields such as `completion_date`, `primary_completion_date`, and `trial_duration_days` are excluded from the first modeling pass because they may leak information about the final trial outcome.
+Completion related fields such as completion_date, primary_completion_date, and trial_duration_days are excluded from the first modeling pass because they may leak information about the final trial outcome.
 
 ## Exploratory Data Analysis
 
-The initial EDA focuses on:
+The initial EDA focused on:
 
-```text
-dataset structure
-target distribution
-missingness
-missingness by status
-categorical feature distributions
-numeric feature distributions
-text length features
-date fields
-feature readiness
-leakage risks
-```
+- Dataset structure
+- Target distribution
+- Missingness
+- Missingness by status
+- Categorical feature distributions
+- Numeric feature distributions
+- Text length features
+- Date fields
+- Feature readiness
+- Leakage risks
 
 Main EDA takeaways:
 
-- The normalized sample contains 600 clinical trial records.
-- The sample is intentionally status stratified, so it should not be interpreted as the real world distribution of trial outcomes.
+- The initial sample contained 600 clinical trial records.
+- The larger sample contains 2,000 status stratified trial records.
+- The samples are intentionally status stratified, so they should not be interpreted as the real world distribution of clinical trial outcomes.
 - Missingness is manageable, but some missing values may carry meaning.
-- `phase` and `maximum_age` require explicit missing value handling.
-- Text fields such as eligibility criteria and brief summaries are useful candidates for simple text length features and later NLP modeling.
+- phase and maximum_age require explicit missing value handling.
 - Completion based fields may introduce target leakage and should be handled carefully.
 
 ## Modeling
 
-The first baseline modeling pipeline compares:
+The first modeling pipeline compares:
 
 1. Dummy Classifier
 2. Logistic Regression
 3. Random Forest
 4. XGBoost
 
-The models use pre outcome trial features such as phase, study type, sponsor class, enrollment, condition counts, intervention counts, location counts, text length features, keyword indicators, and missingness indicators.
+Models are evaluated using:
 
-## Modeling Results
+- Accuracy
+- Precision
+- Recall
+- F1
+- ROC AUC
+- Confusion matrix
 
-Current baseline results:
+Accuracy alone is not sufficient because the target is imbalanced.
+
+## Larger Sample Results
+
+The larger sample uses 500 records per target status, for 2,000 total records.
 
 | Model | Accuracy | Precision | Recall | F1 | ROC AUC |
 |---|---:|---:|---:|---:|---:|
 | Dummy Classifier | 0.750 | 0.750 | 1.000 | 0.857 | 0.500 |
-| Logistic Regression | 0.825 | 0.960 | 0.800 | 0.873 | 0.916 |
-| Random Forest | 0.858 | 0.974 | 0.833 | 0.898 | 0.904 |
-| XGBoost | 0.850 | 0.900 | 0.900 | 0.900 | 0.894 |
+| Logistic Regression | 0.840 | 0.968 | 0.813 | 0.884 | 0.910 |
+| Random Forest | 0.835 | 0.947 | 0.827 | 0.883 | 0.906 |
+| XGBoost | 0.852 | 0.906 | 0.897 | 0.901 | 0.916 |
 
-Initial interpretation:
+Main findings:
 
-- All three real models substantially outperform the Dummy Classifier.
-- Logistic Regression achieves the highest ROC AUC.
-- Random Forest achieves the highest accuracy.
-- XGBoost achieves the most balanced precision and recall.
-- The results suggest that the engineered features contain predictive signal.
-- These results are preliminary because the current dataset is small and intentionally status stratified.
+- All real models outperform the Dummy Classifier on ROC AUC.
+- XGBoost performs best overall on the larger sample, with 0.916 ROC AUC and 0.901 F1.
+- Logistic Regression remains competitive and interpretable.
+- Model performance remains strong after scaling from the initial 600 record sample to a 2,000 record sample.
 
-Model results are saved to:
+These results are preliminary because the larger sample is still status stratified.
 
-```text
-reports/model_results.csv
-```
+## No Enrollment Leakage Check
+
+Feature importance showed that enrollment related fields were among the strongest predictors.
+
+Removed features:
+
+- enrollment_count
+- log_enrollment_count
+- enrollment_type
+
+The goal was to test whether models still performed well after removing fields that may be updated during or after a trial.
+
+| Model | Accuracy | Precision | Recall | F1 | ROC AUC |
+|---|---:|---:|---:|---:|---:|
+| Dummy Classifier | 0.750 | 0.750 | 1.000 | 0.857 | 0.500 |
+| Logistic Regression | 0.620 | 0.866 | 0.583 | 0.697 | 0.680 |
+| Random Forest | 0.640 | 0.793 | 0.703 | 0.746 | 0.653 |
+| XGBoost | 0.728 | 0.751 | 0.953 | 0.840 | 0.653 |
+
+Main findings:
+
+- Removing enrollment related fields caused performance to drop substantially.
+- This suggests that enrollment fields carry a large amount of predictive signal.
+- The drop supports the leakage concern because enrollment fields may be updated during or after a trial.
+- The no enrollment models still beat the dummy baseline on ROC AUC, but performance is much weaker.
+- The project now has two modeling views:
+  - A broader reported metadata model with stronger performance
+  - A stricter no enrollment model with lower performance but reduced leakage risk
 
 ## Model Interpretation
 
-Feature importance outputs are saved under `reports/`:
+Feature importance outputs are saved in reports/.
 
-```text
-reports/logistic_regression_feature_importance.csv
-reports/random_forest_feature_importance.csv
-reports/xgboost_feature_importance.csv
-```
+The broader metadata model found that enrollment related fields were consistently important across models.
 
-Main interpretation findings:
+Important features included:
 
-- Enrollment related features appear consistently important across Logistic Regression, Random Forest, and XGBoost.
-- Important enrollment features include `enrollment_type_ESTIMATED`, `enrollment_type_ACTUAL`, `enrollment_count`, and `log_enrollment_count`.
-- Text length features, phase missingness, start year, and location or country features also contribute to model predictions.
-- The dominance of enrollment related features is useful but requires caution because enrollment fields may be updated during or after a trial.
+- enrollment_type_ESTIMATED
+- enrollment_type_ACTUAL
+- enrollment_count
+- log_enrollment_count
+- eligibility_text_length
+- brief_summary_length
+- start_year
+- phase_missing
+- num_locations
+- num_countries
 
-A future stricter model should test performance without enrollment related features to check whether the current model depends too heavily on potentially leaky fields.
+After enrollment features were removed, the models shifted toward:
 
-## Dashboard Plan
+- Text length features
+- Start year
+- Phase and phase missingness
+- Sponsor class
+- Location and country counts
+- Placebo indicator
+- Sex eligibility
 
-The planned Streamlit dashboard will include:
+This makes the project more credible because it does not only report the highest model score. It also investigates whether the strongest predictors are safe to use for a realistic pre outcome prediction task.
+
+## Dashboard
+
+The project includes a Streamlit dashboard for exploring:
+
+- Dataset overview
+- Risk labels and status distribution
+- Trial filters
+- Model results
+- Full model vs no enrollment model comparison
+- Feature importance
+- Data quality issues
+- Individual trial details
+
+Dashboard tabs:
 
 | Tab | Purpose |
 |---|---|
-| Overview | Summary of trial counts, statuses, and risk distribution |
-| Risk Explorer | Filter and explore trials by risk, sponsor, phase, geography, and study type |
-| Model Insights | Show model metrics and feature importance |
-| Data Quality | Display missingness, field coverage, and data quality warnings |
-| Trial Detail | Inspect individual trial records and model inputs |
+| Overview | Shows high level dataset metrics and distributions |
+| Risk Explorer | Filters trials by status, risk group, phase, study type, sponsor class, and sex |
+| Model Insights | Compares model results and feature importance |
+| Data Quality | Shows missingness and data quality notes |
+| Trial Detail | Lets users inspect one trial at a time |
+
+Run the dashboard with:
+
+    uv run streamlit run src/clinical_trial_risk/dashboard/app.py
 
 ## How to Run
 
 Install dependencies:
 
-```powershell
-uv sync
-```
+    uv sync
 
-Pull sample data:
+Pull the larger sample:
 
-```powershell
-uv run python src/clinical_trial_risk/ingest/pull_sample.py
-```
+    uv run python src/clinical_trial_risk/ingest/pull_larger_sample.py
 
-Normalize raw data:
+Normalize the larger raw data:
 
-```powershell
-uv run python src/clinical_trial_risk/clean/process_sample.py
-```
+    uv run python src/clinical_trial_risk/clean/process_larger_sample.py
 
-Build the processed modeling dataset:
+Build the larger processed modeling dataset:
 
-```powershell
-uv run python src/clinical_trial_risk/features/build_features.py
-```
+    uv run python src/clinical_trial_risk/features/build_larger_features.py
 
-Train baseline models and save model results:
+Train baseline models with enrollment features:
 
-```powershell
-uv run python src/clinical_trial_risk/models/baseline.py
-```
+    uv run python src/clinical_trial_risk/models/baseline_larger.py
+
+Train no enrollment models:
+
+    uv run python src/clinical_trial_risk/models/baseline_larger_no_enrollment.py
+
+Run the dashboard:
+
+    uv run streamlit run src/clinical_trial_risk/dashboard/app.py
 
 ## Current Progress
 
 Completed:
 
-- Initial ClinicalTrials.gov sample pull
+- ClinicalTrials.gov API data pull
+- Pagination for larger data pulls
 - Raw JSON output
 - Nested JSON normalization
 - Data dictionary notes
 - Initial EDA
 - Processed modeling dataset
 - Baseline model comparison
+- Larger sample validation
 - Feature importance outputs
-- Model interpretation notes
-
-In progress or planned:
-
-- Larger and more realistic data pull
-- Stricter leakage checks
-- Feature importance stability testing
+- No enrollment leakage check
 - Streamlit dashboard
-- Optional PyTorch text model for eligibility criteria and brief summaries
+
+Planned or optional next steps:
+
+- Add screenshots to the README
+- Deploy the Streamlit dashboard
+- Test a less artificially balanced sample
+- Add trial level predicted risk scores
+- Add a PyTorch text model for eligibility criteria and brief summaries
+- Improve dashboard styling and layout
 
 ## Limitations
 
@@ -267,24 +307,12 @@ This project uses public clinical trial metadata, which may be incomplete, incon
 
 Important limitations:
 
-- The current sample contains only 600 records.
-- The current sample is intentionally status stratified.
+- The current datasets are status stratified and do not represent real world clinical trial outcome rates.
 - The target label is a simplified proxy for trial risk.
 - The model does not directly predict recruitment difficulty yet.
-- Some fields may be updated after trial launch, which creates potential leakage concerns.
+- Some fields may be updated after trial launch, creating potential leakage concerns.
+- Enrollment related fields are highly predictive but may not be safe for strict pre outcome prediction.
 - Text fields are currently represented through simple length and keyword features rather than deeper NLP methods.
-- Model performance has not yet been validated on a larger or more realistic dataset.
+- Model performance has not yet been validated on a naturally distributed sample.
 
-Model outputs should be interpreted as exploratory risk signals, not as clinical, regulatory, or operational recommendations.
-
-## Next Steps
-
-Planned next steps:
-
-1. Pull a larger dataset from ClinicalTrials.gov
-2. Re run ingestion, normalization, feature engineering, and modeling
-3. Test a stricter feature set without enrollment related fields
-4. Compare feature importance stability across datasets
-5. Build the Streamlit dashboard
-6. Add trial level model explanations
-7. Consider a PyTorch text model for trial summaries and eligibility criteria
+Model outputs should be interpreted as exploratory risk signals, not clinical, regulatory, or operational recommendations.
